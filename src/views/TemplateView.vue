@@ -69,6 +69,12 @@
         >Remove</v-btn
       >
     </v-card-actions>
+    <v-fab
+      class="back-button"
+      color="primary"
+      icon="mdi-arrow-left"
+      @click="router.push({ name: 'index' })"
+    />
     <RemoveDialog v-model="removeDialog" @remove="removeTemplate" />
   </v-card>
 </template>
@@ -207,6 +213,13 @@ onMounted(() => {
         background-color: rgba(255, 255, 255, 0.9);
       }
     }
+  }
+
+  .back-button {
+    position: fixed;
+    top: 4rem;
+    left: 1rem;
+    height: auto !important;
   }
 }
 </style>

@@ -98,8 +98,8 @@ const removeTemplate = () => {
 
 .add-template-button {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  bottom: 1rem;
+  right: 1rem;
   height: auto !important;
 }
 </style>
