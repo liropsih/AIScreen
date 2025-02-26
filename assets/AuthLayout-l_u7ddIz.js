@@ -1,0 +1,1 @@
+import{_ as a,r as e,o as s,c as n,w as c,a as r}from"./index-CS5Eym_8.js";const _={};function l(t,u){const o=e("v-main");return s(),n(o,{class:"auth-layout"},{default:c(()=>[r(t.$slots,"default")]),_:3})}const m=a(_,[["render",l]]);export{m as default};
