@@ -28,8 +28,15 @@ api.interceptors.response.use(
   },
   error => {
     if (error.response) {
+      const message = error.response.data?.message;
       if (error.response.status === 401) {
-        onAuthError(error.response.data?.message);
+        onAuthError(message);
+      } else {
+        onError(
+          `Request error ${error.response.status} ${
+            message ? `: ${message}` : ""
+          }`,
+        );
       }
     } else if (error.request) {
       onError("Server is not responding");

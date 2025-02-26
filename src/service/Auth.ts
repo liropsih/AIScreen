@@ -19,13 +19,13 @@ const clearAuthToken = () => {
 
 export const logout = () => {
   clearAuthToken();
-  router.push("/login");
+  router.push({ name: "login" });
 };
 
 export const onAuthError = (message?: string) => {
   onError(message || "Auth error");
   clearAuthToken();
-  router.push("/login");
+  router.push({ name: "login" });
 };
 
 export const onAuthSuccess = (token: string, rememberMe: boolean) => {
@@ -36,5 +36,5 @@ export const onAuthSuccess = (token: string, rememberMe: boolean) => {
   } else {
     sessionStorage.setItem(AuthTokenKey, token);
   }
-  router.push("/");
+  router.push({ name: "index" });
 };

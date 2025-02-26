@@ -1,9 +1,9 @@
 <template>
-  <v-card class="template-view" v-if="showTemplateItem">
+  <v-card class="template-view" v-if="showTemplateItem" :loading="loading">
     <TemplateImage
       class="template-view__image"
       cover
-      :src="showTemplateItem.preview_image"
+      :src="showTemplateItem.preview_image || undefined"
       width="100%"
       height="auto"
     >
@@ -30,16 +30,21 @@
           v-model="showTemplateItem.name"
           label="Name"
           :rules="[rules.required]"
-        />
-        <v-text-field
-          v-model="showTemplateItem.description"
-          label="Description"
+          @update:model-value="changed = true"
         />
         <v-text-field
           v-model="showTemplateItem.height"
           label="Height"
           type="number"
-          :rules="[rules.number]"
+          :rules="[rules.required, rules.number]"
+          @update:model-value="changed = true"
+        />
+        <v-text-field
+          v-model="showTemplateItem.width"
+          label="Width"
+          type="number"
+          :rules="[rules.required, rules.number]"
+          @update:model-value="changed = true"
         />
         <v-combobox
           v-model="showTemplateItem.tags"
@@ -49,6 +54,7 @@
           closable-chips
           multiple
           :items="tags"
+          @update:model-value="changed = true"
         >
           <template v-slot:chip="{ props, item }">
             <v-chip v-bind="props">
@@ -63,7 +69,7 @@
       <v-btn density="compact" :disabled="!isTemplateValid" @click="save">
         Save
       </v-btn>
-      <v-btn density="compact" @click="reset">Reset</v-btn>
+      <v-btn v-if="changed" density="compact" @click="reset">Reset</v-btn>
       <v-spacer />
       <v-btn density="compact" @click="showRemoveDialog(showTemplateItem.id)"
         >Remove</v-btn
@@ -85,47 +91,68 @@ import TemplateImage from "@/components/image/TemplateImage.vue";
 import RemoveDialog from "@/components/template-item/RemoveDialog.vue";
 import { onError, onSuccess } from "@/service/Toast";
 import { useTemplateStore } from "@/store/templateStore";
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { convertToBase64 } from "@/utils/fileUtils";
+import { debounce } from "underscore";
 
 const router = useRouter();
 const route = useRoute();
+const templateStore = useTemplateStore();
 
 const rules = {
   required: (value: string) => !!value || "Field is required",
   number: (value: string) => !isNaN(Number(value)) || "Field must be a number",
 };
 
-const id = computed(() => route.params.id);
-const templateStore = useTemplateStore();
-const tags = computed(() => templateStore.tags);
-
-const templateItem = computed<TemplateItem | null>(() =>
-  templateStore.getItemById(id.value as string | number),
-);
-
+const loading = ref(true);
+const changed = ref(false);
 const showTemplateItem = ref<TemplateItem | null>(null);
 const imageInput = ref<HTMLInputElement | null>(null);
 
 const removeDialog = ref(false);
 const selectedTemplateId = ref<number | string | null>(null);
 
+const id = computed(() => route.params.id);
+const tags = computed(() => templateStore.tags);
+
+const templateItem = computed<TemplateItem | null>(() =>
+  templateStore.getItemById(id.value as string | number),
+);
+
+const isTemplateValid = computed(() => {
+  if (
+    !showTemplateItem.value?.name ||
+    !showTemplateItem.value?.height ||
+    !showTemplateItem.value?.width
+  ) {
+    return false;
+  }
+  if (
+    isNaN(Number(showTemplateItem.value?.height)) ||
+    isNaN(Number(showTemplateItem.value?.width))
+  ) {
+    return false;
+  }
+  return true;
+});
+
 const showRemoveDialog = (id: number | string) => {
   selectedTemplateId.value = id;
   removeDialog.value = true;
 };
 
-const removeTemplate = () => {
+const removeTemplate = async () => {
   if (selectedTemplateId.value) {
-    templateStore.removeItem(selectedTemplateId.value);
+    await templateStore.removeItem(selectedTemplateId.value);
     selectedTemplateId.value = null;
   }
   onSuccess("Template removed");
-  router.push("/");
+  router.push({ name: "index" });
 };
 
 const changeImage = async (event: Event) => {
+  changed.value = true;
   const file = (event.target as HTMLInputElement).files?.[0];
   if (file) {
     try {
@@ -139,61 +166,105 @@ const changeImage = async (event: Event) => {
 };
 
 const removeImage = () => {
-  showTemplateItem.value!.preview_image = undefined;
+  changed.value = true;
+  showTemplateItem.value!.preview_image = "";
 };
+
+const getDefaultTemplate = (): TemplateItem => ({
+  id: 0,
+  name: "",
+  height: "",
+  width: "",
+  objects: null,
+  tags: [],
+  preview_image: "",
+});
 
 const reset = () => {
   if (!id.value) {
-    showTemplateItem.value = {
-      id: 0,
-      name: "",
-      description: "",
-      height: "",
-      objects: null,
-      tags: [],
-      preview_image: undefined,
-    };
-    return;
+    showTemplateItem.value = getDefaultTemplate();
+  } else {
+    showTemplateItem.value = JSON.parse(
+      JSON.stringify({
+        ...templateItem.value,
+        tags: templateItem.value!.tags || [],
+      }),
+    );
   }
-  showTemplateItem.value = JSON.parse(
-    JSON.stringify({
-      ...templateItem.value,
-      tags: templateItem.value!.tags || [],
-    }),
-  );
+  removeDraft(id.value as string | number);
+  changed.value = false;
 };
 
-const isTemplateValid = computed(() => {
-  if (!showTemplateItem.value?.name) {
-    return false;
-  }
-  return true;
-});
-
-const save = () => {
+const save = async () => {
   if (!isTemplateValid.value) {
     onError("Template is not valid");
     return;
   }
   if (!id.value) {
-    const templateId = templateStore.addItem(showTemplateItem.value!);
-    router.push({ name: "template-view", params: { id: templateId } });
+    const templateData = await templateStore.addItem(showTemplateItem.value!);
+    showTemplateItem.value = JSON.parse(JSON.stringify(templateData));
+    router.push({ name: "template-view", params: { id: templateData.id } });
+    removeDraft();
   } else {
-    templateStore.updateItem(
+    const templateData = await templateStore.updateItem(
       id.value as string | number,
       showTemplateItem.value!,
     );
+    showTemplateItem.value = JSON.parse(JSON.stringify(templateData));
+    removeDraft(id.value as string | number);
   }
+  changed.value = false;
   onSuccess("Template saved");
 };
 
-reset();
+const getDrafts = (): Record<string, TemplateItem> =>
+  JSON.parse(localStorage.getItem("drafts") || "{}");
 
-onMounted(() => {
+const removeDraft = (id?: string | number) => {
+  const drafts = getDrafts();
+  delete drafts[id || "null"];
+  localStorage.setItem("drafts", JSON.stringify(drafts));
+};
+
+const saveDraft = debounce((value: TemplateItem) => {
+  const drafts = getDrafts();
+  drafts[value.id || "null"] = value;
+  localStorage.setItem("drafts", JSON.stringify(drafts));
+}, 200);
+
+const fetchTemplate = async () => {
+  const drafts = getDrafts();
+  if (id.value) {
+    const draft = drafts[id.value as string];
+    const templateData =
+      draft || (await templateStore.fetchTemplate(id.value as string | number));
+    showTemplateItem.value = JSON.parse(JSON.stringify(templateData));
+    if (draft) {
+      changed.value = true;
+    }
+  } else {
+    const draft = drafts["null"];
+    showTemplateItem.value = draft || getDefaultTemplate();
+    if (draft) {
+      changed.value = true;
+    }
+  }
   if (!showTemplateItem.value) {
     onError("Template not found");
-    router.push("/");
+    router.push({ name: "index" });
+    return;
   }
+  loading.value = false;
+};
+
+const watchers: (() => void)[] = [];
+
+fetchTemplate().then(() => {
+  watchers.push(watch(showTemplateItem, saveDraft, { deep: 3 }));
+});
+
+onBeforeUnmount(() => {
+  watchers.forEach(watcher => watcher());
 });
 </script>
 

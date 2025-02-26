@@ -26,49 +26,51 @@ export const useTemplateStore = defineStore("template-store", {
         state.items.filter(item => tags.every(tag => item.tags?.includes(tag))),
   },
   actions: {
-    addItems(items: TemplateItem[]) {
-      this.items = items;
+    async addItem(item: TemplateItem) {
+      return templatesApi.create(item).then(({ data }) => {
+        this.items.push(data);
+        return data;
+      });
     },
-    addItem(item: TemplateItem) {
-      const id = item.id || Date.now() + Math.round(Math.random() * 1000000);
-      this.items.push({ ...item, id });
-      return id;
+    async updateItem(id: number | string, item: TemplateItem) {
+      return templatesApi.update(id, item).then(({ data }) => {
+        const index = this.items.findIndex(
+          item => String(item.id) === String(id),
+        );
+        if (index !== -1) {
+          this.items[index] = data;
+        }
+        return data;
+      });
     },
-    updateItem(id: number | string, item: TemplateItem) {
-      const index = this.items.findIndex(
-        item => String(item.id) === String(id),
-      );
-      if (index !== -1) {
-        this.items[index] = item;
-      }
-    },
-    removeItem(id: number | string) {
-      const index = this.items.findIndex(
-        item => String(item.id) === String(id),
-      );
-      if (index !== -1) {
-        this.items.splice(index, 1);
-      }
-    },
-    clearItems() {
-      this.items = [];
+    async removeItem(id: number | string) {
+      return templatesApi.delete(id).then(() => {
+        const index = this.items.findIndex(
+          item => String(item.id) === String(id),
+        );
+        if (index !== -1) {
+          this.items.splice(index, 1);
+        }
+      });
     },
     async fetchTemplates() {
-      console.log(
-        "загрузка шаблонов из api. добавление в store недостающих шаблонов",
-      );
-      try {
-        const { data } = await templatesApi.getTemplates();
-        data.forEach(item => {
-          if (this.getItemById(item.id)) {
-            // this.updateItem(item.id, item); // TODO: update item
-          } else {
-            this.addItem(item);
-          }
-        });
-      } catch (error) {
-        console.error(error);
-      }
+      return templatesApi.get().then(({ data }) => {
+        this.items = data;
+        return data;
+      });
+    },
+    async fetchTemplate(id: number | string) {
+      return templatesApi.getOne(id).then(({ data }) => {
+        const index = this.items.findIndex(
+          item => String(item.id) === String(id),
+        );
+        if (index !== -1) {
+          this.items[index] = data;
+        } else {
+          this.items.push(data);
+        }
+        return data;
+      });
     },
     async init() {
       await this.fetchTemplates();

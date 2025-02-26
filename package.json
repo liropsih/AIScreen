@@ -18,6 +18,7 @@
   "dependencies": {
     "axios": "^1.8.0",
     "pinia": "^3.0.1",
+    "underscore": "^1.13.7",
     "uuid": "^10.0.0",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0",
@@ -28,6 +29,7 @@
     "@mdi/font": "^7.4.47",
     "@tsconfig/node20": "^20.1.4",
     "@types/node": "^20.16.11",
+    "@types/underscore": "^1.13.0",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vue/eslint-config-prettier": "^10.2.0",
