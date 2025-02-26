@@ -2,7 +2,7 @@
   <v-card class="template-item" @click="emit('edit')">
     <TemplateImage
       cover
-      :src="templateItem.preview_image"
+      :src="templateItem.preview_image || undefined"
       width="100%"
       :height="200"
     >

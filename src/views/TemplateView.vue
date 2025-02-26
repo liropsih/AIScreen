@@ -260,7 +260,9 @@ const fetchTemplate = async () => {
 const watchers: (() => void)[] = [];
 
 fetchTemplate().then(() => {
-  watchers.push(watch(showTemplateItem, saveDraft, { deep: 3 }));
+  watchers.push(
+    watch(showTemplateItem, value => saveDraft(value!), { deep: 3 }),
+  );
 });
 
 onBeforeUnmount(() => {
