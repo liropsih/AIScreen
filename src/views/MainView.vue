@@ -75,12 +75,12 @@ const showRemoveDialog = (id: number | string) => {
   removeDialog.value = true;
 };
 
-const removeTemplate = () => {
+const removeTemplate = async () => {
   if (selectedTemplateId.value === null) {
     onError("No template selected");
     return;
   }
-  templateStore.removeItem(selectedTemplateId.value);
+  await templateStore.removeItem(selectedTemplateId.value);
   selectedTemplateId.value = null;
   onSuccess("Template removed");
 };
